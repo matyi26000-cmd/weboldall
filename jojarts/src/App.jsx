@@ -15,6 +15,12 @@ const readJsonSafe = async (response) => {
   }
 }
 
+const API_BASE = (import.meta.env.VITE_API_BASE || '').trim()
+const IS_GITHUB_PAGES =
+  typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
+const API_ENABLED = Boolean(API_BASE) || !IS_GITHUB_PAGES
+const buildApiUrl = (path) => (API_BASE ? `${API_BASE}${path}` : path)
+
 function useIsMobile(breakpoint = 600) {
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return false
@@ -479,7 +485,7 @@ function AdminPage({ images, setImages, setIsAdmin }) {
     }
     setUploadError('')
     try {
-      const response = await fetch(`/api/images/${id}`, {
+      const response = await fetch(buildApiUrl(`/api/images/${id}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -527,7 +533,7 @@ function AdminPage({ images, setImages, setIsAdmin }) {
         return
       }
 
-      const apiResponse = await fetch(`/api/images/${id}`, {
+      const apiResponse = await fetch(buildApiUrl(`/api/images/${id}`), {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -699,7 +705,7 @@ function UploadPage({ images, setImages }) {
         throw new Error('Nincs jogosultság a feltöltéshez.')
       }
 
-      const apiResponse = await fetch('/api/images', {
+      const apiResponse = await fetch(buildApiUrl('/api/images'), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -797,7 +803,12 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    fetch('/api/images')
+    if (!API_ENABLED) {
+      setImages([])
+      return
+    }
+
+    fetch(buildApiUrl('/api/images'))
       .then(async (response) => (response.ok ? readJsonSafe(response) : []))
       .then((data) => {
         setImages(Array.isArray(data) ? data : [])
@@ -814,7 +825,12 @@ function App() {
       return
     }
 
-    fetch('/api/auth/me', {
+    if (!API_ENABLED) {
+      setIsAdmin(false)
+      return
+    }
+
+    fetch(buildApiUrl('/api/auth/me'), {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (response) => (response.ok ? readJsonSafe(response) : null))
@@ -827,7 +843,7 @@ function App() {
   }, [])
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/weboldall">
       <div className="page">
         <ScrollToHash />
         <SiteHeader />
